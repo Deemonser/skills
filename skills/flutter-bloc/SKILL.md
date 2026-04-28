@@ -1,511 +1,523 @@
 ---
 name: flutter-bloc-development
-description: Flutter BLoC 状态管理开发规范，涵盖架构分层、设计系统常量、测试标准和命名约定。适用于创建页面、组件、数据集成，或审查/重构 BLoC 相关代码。
-allowed-tools: Read Glob Grep
+description: 用于编写、重构或评审基于 Flutter BLoC/Cubit 的功能代码。适用于新功能开发、页面接入状态管理、重构 UI 与逻辑分层，或审查事件/状态/数据流是否清晰。view 层必须同时遵循 flutter-no-nesting 的页面组织方式。
+version: 2.0.0
 ---
 
 # Flutter BLoC 开发规范
 
-基于 BLoC 模式分离业务逻辑与 UI，结合项目设计系统常量，确保代码一致性与可测试性。
+这个 skill 用来约束 **BLoC/Cubit 分层、数据流、测试方式，以及 view 层和 `flutter-no-nesting` 的配合方式**。
 
----
+它不是一篇 BLoC 教程。目标是让产出的代码满足：
 
-## 决策树：选择正确的方式
+- 状态管理职责明确
+- 数据流可追踪
+- UI 不夹带业务逻辑
+- view 层结构清晰，不写成大段套娃
 
-```
-用户任务 → 在构建什么？
-    │
-    ├─ 新页面/功能 → 完整功能实现：
-    │   1. 创建功能目录 lib/[feature]/
-    │   2. 定义 BLoC（bloc/_event.dart, _state.dart, _bloc.dart）
-    │   3. 创建数据层（data/datasources/, repositories/, models/）
-    │   4. 构建 UI（view/[feature]_page.dart, view/widgets/）
-    │   5. 创建 barrel 文件（[feature].dart, data/data.dart, view/view.dart）
-    │
-    ├─ 仅新组件 → 表现层：
-    │   1. 功能专属：feature/view/widgets/
-    │   2. 跨功能复用：shared/widgets/
-    │   3. 使用设计系统常量（不允许硬编码）
-    │   4. 按需接入已有 BLoC
-    │
-    ├─ 数据集成 → 数据层：
-    │   1. 创建 datasource（feature/data/datasources/）
-    │   2. 创建 repository（feature/data/repositories/）
-    │   3. 接入现有或新建 BLoC
-    │
-    ├─ 简单 UI 状态（无复杂事件流）→ 使用 Cubit：
-    │   emit(NewState()) 代替 on<Event>
-    │
-    └─ 重构 → 检查违规项：
-        1. 硬编码颜色/间距/字体
-        2. 业务逻辑混入 UI
-        3. 直接在 repository 调用 SDK
-        4. 异步操作前缺少 Loading 状态
-        5. Event/State 缺少 Equatable
-        6. 错误处理未用 SnackBar + AppColors.error
-```
+## 什么时候用
 
----
+出现以下任一情况时使用：
 
-## 架构总览
+- 新建一个使用 `flutter_bloc` 的功能或页面
+- 给已有页面接入 `Bloc` 或 `Cubit`
+- 重构 `Page / View / Widgets / Bloc / Repository / Datasource`
+- 评审 Flutter 代码是否把业务逻辑错误地写进了 UI
+- 修复事件命名混乱、状态不可追踪、测试缺失的问题
 
-**功能优先结构**（官方 BLoC 推荐）：
+## 配合规则
 
-```
+### view 层必须遵循 `flutter-no-nesting`
+
+只要本 skill 涉及 Flutter 页面或组件实现，就必须同时遵守 `flutter-no-nesting` 的规则：
+
+- `Page` 和 `View` 只保留业务结构、状态消费和事件派发
+- 复杂布局必须拆成业务 Widget 组合
+- 列表区块使用 builder 思路组织
+- 不能把长链式 `Row / Column / Padding / Expanded / ScrollView` 全堆在一个 `build`
+
+一句话：
+
+**BLoC skill 负责状态流，no-nesting skill 负责 view 结构。**
+
+## 先做判断
+
+开始写之前先判断这次任务属于哪种：
+
+### 1. 简单局部状态
+
+如果只是：
+
+- tab 切换
+- 开关状态
+- 计数器
+- 表单局部可见性
+- 没有复杂异步事件链
+
+优先用 `Cubit`。
+
+### 2. 复杂事件流或异步流程
+
+如果涉及：
+
+- 初始化加载
+- 刷新 / 分页 / 重试
+- 表单提交
+- 多状态切换
+- 明确的事件语义和调试追踪
+
+使用 `Bloc`。
+
+## 推荐目录
+
+默认采用功能优先结构：
+
+```text
 lib/
-├── [feature]/
-│   ├── bloc/
-│   │   ├── [feature]_bloc.dart
-│   │   ├── [feature]_event.dart
-│   │   └── [feature]_state.dart
-│   ├── data/
-│   │   ├── datasources/          # 功能专属 API 调用
-│   │   ├── repositories/         # 数据编排
-│   │   ├── models/               # 功能专属 DTO
-│   │   └── data.dart             # 数据层 barrel 文件
-│   ├── view/
-│   │   ├── [feature]_page.dart   # Page：提供 BLoC
-│   │   ├── [feature]_view.dart   # View：消费 BLoC
-│   │   ├── widgets/              # 功能专属组件
-│   │   └── view.dart             # View barrel 文件
-│   └── [feature].dart            # 功能 barrel 文件
-├── shared/
-│   ├── data/
-│   │   ├── datasources/          # 共享 API 客户端
-│   │   ├── models/               # 共享模型（User 等）
-│   │   └── data.dart
-│   ├── widgets/                  # 跨功能复用组件
-│   └── utils/                    # 设计系统（颜色、间距、字体）
-└── app.dart
+└── feature/
+    ├── bloc/
+    │   ├── feature_bloc.dart
+    │   ├── feature_event.dart
+    │   └── feature_state.dart
+    ├── data/
+    │   ├── datasources/
+    │   ├── repositories/
+    │   └── models/
+    ├── view/
+    │   ├── feature_page.dart
+    │   ├── feature_view.dart
+    │   └── widgets/
+    └── feature.dart
 ```
 
-### 功能 vs 共享数据选择
+如果项目已有既定目录规范，优先跟随项目，不强推这个结构。但职责边界不能丢。
 
-| 场景 | 位置 | 示例 |
-|------|------|------|
-| 仅一个功能使用的 API | `feature/data/` | `EarningsDataSource` |
-| 多功能共用的 API 客户端 | `shared/data/` | `ApiClient`, `UserDataSource` |
-| 仅一个功能使用的模型 | `feature/data/models/` | `EarningsSummary` |
-| 多功能共用的模型 | `shared/data/models/` | `User`, `ApiResponse` |
+## 分层职责
 
-### Barrel 文件示例
+### 1. Page
+
+`Page` 只负责：
+
+- 创建 `BlocProvider` / `MultiBlocProvider`
+- 组装依赖
+- 挂载 `View`
+
+`Page` 不负责：
+
+- 写业务 UI 细节
+- 直接渲染复杂页面结构
+- 写事件处理逻辑
 
 ```dart
-// earnings/earnings.dart
-export 'bloc/earnings_bloc.dart';
-export 'bloc/earnings_event.dart';
-export 'bloc/earnings_state.dart';
-export 'data/data.dart';
-export 'view/view.dart';
-```
-
----
-
-## Cubit vs Bloc 选择
-
-| 维度 | Cubit | Bloc |
-|------|-------|------|
-| API | 方法 → `emit(state)` | 事件 → `on<Event>` → `emit(state)` |
-| 复杂度 | 低 | 较高 |
-| 可追踪性 | 弱（无事件日志） | 强（事件 + 转换） |
-| 适用场景 | 简单状态、UI 驱动逻辑 | 复杂流程、事件驱动、需变换 |
-
-### Cubit 示例
-
-```dart
-class CounterCubit extends Cubit<int> {
-  CounterCubit() : super(0);
-
-  void increment() => emit(state + 1);
-  void decrement() => emit(state - 1);
-}
-```
-
-### Bloc 示例
-
-```dart
-sealed class CounterEvent extends Equatable {
-  const CounterEvent();
-
-  @override
-  List<Object> get props => [];
-}
-
-final class CounterIncrementPressed extends CounterEvent {}
-final class CounterDecrementPressed extends CounterEvent {}
-
-class CounterBloc extends Bloc<CounterEvent, int> {
-  CounterBloc() : super(0) {
-    on<CounterIncrementPressed>((event, emit) => emit(state + 1));
-    on<CounterDecrementPressed>((event, emit) => emit(state - 1));
-  }
-}
-```
-
----
-
-## 命名约定
-
-### 事件命名
-
-**格式：** `BLoC主语` + `名词` + `过去时动词`
-
-| 事件类名 | 含义 |
-|----------|------|
-| `TodoListSubscriptionRequested` | 订阅 Todo 列表流 |
-| `TodoListTodoDeleted` | 删除特定 Todo |
-| `LoginFormSubmitted` | 提交登录表单 |
-| `ProfilePageRefreshed` | 刷新个人资料页 |
-
-```dart
-sealed class TodoListEvent extends Equatable {
-  const TodoListEvent();
-
-  @override
-  List<Object> get props => [];
-}
-
-final class TodoListSubscriptionRequested extends TodoListEvent {}
-
-final class TodoListTodoDeleted extends TodoListEvent {
-  const TodoListTodoDeleted({required this.todo});
-
-  final Todo todo;
-
-  @override
-  List<Object> get props => [todo];
-}
-```
-
-### 状态命名
-
-#### 子类方式（各状态携带不同数据）
-
-```dart
-sealed class LoginState extends Equatable {
-  const LoginState();
-
-  @override
-  List<Object> get props => [];
-}
-
-final class LoginInitial extends LoginState {}
-final class LoginInProgress extends LoginState {}
-
-final class LoginSuccess extends LoginState {
-  const LoginSuccess({required this.user});
-  final User user;
-
-  @override
-  List<Object> get props => [user];
-}
-
-final class LoginFailure extends LoginState {
-  const LoginFailure({required this.error});
-  final String error;
-
-  @override
-  List<Object> get props => [error];
-}
-```
-
-#### 单类方式（所有状态共享相同数据结构）
-
-```dart
-enum TodoListStatus { initial, loading, success, failure }
-
-class TodoListState extends Equatable {
-  const TodoListState({
-    this.status = TodoListStatus.initial,
-    this.todos = const [],
-    this.error,
-  });
-
-  final TodoListStatus status;
-  final List<Todo> todos;
-  final String? error;
-
-  TodoListState copyWith({
-    TodoListStatus? status,
-    List<Todo>? todos,
-    String? error,
-  }) {
-    return TodoListState(
-      status: status ?? this.status,
-      todos: todos ?? this.todos,
-      error: error ?? this.error,
-    );
-  }
-
-  @override
-  List<Object?> get props => [status, todos, error];
-}
-```
-
----
-
-## BLoC 实现标准
-
-**数据流：**
-```
-UI 事件 → BLoC (emit Loading) → Repository → Datasource (SDK)
-    ↓
-响应 → Repository (映射实体) → BLoC (emit Success/Error) → UI
-```
-
-**完整 BLoC 示例（含 Loading → Success/Error）：**
-
-```dart
-class FeatureBloc extends Bloc<FeatureEvent, FeatureState> {
-  final FeatureRepository _repository;
-
-  FeatureBloc({required FeatureRepository repository})
-      : _repository = repository,
-        super(FeatureInitial()) {
-    on<FeatureActionRequested>(_onActionRequested);
-  }
-
-  Future<void> _onActionRequested(
-    FeatureActionRequested event,
-    Emitter<FeatureState> emit,
-  ) async {
-    emit(FeatureLoading());
-    try {
-      final result = await _repository.doSomething(event.param);
-      emit(FeatureSuccess(result));
-    } catch (e) {
-      emit(FeatureError(e.toString()));
-    }
-  }
-}
-```
-
-**重要**：异步操作前必须先 emit Loading，绝不跳过。
-
----
-
-## 数据层
-
-**Datasource** — 仅做 SDK 调用：
-
-```dart
-class FeatureDataSource {
-  final SupabaseClient _supabase;
-  FeatureDataSource(this._supabase);
-
-  Future<Map<String, dynamic>> fetch() async {
-    return await _supabase.from('table').select().single();
-  }
-}
-```
-
-**Repository** — 编排与映射，不直接调用 SDK：
-
-```dart
-class FeatureRepository {
-  final FeatureDataSource _dataSource;
-  FeatureRepository(this._dataSource);
-
-  Future<DomainEntity> fetchData() async {
-    final response = await _dataSource.fetch();
-    return DomainEntity.fromJson(response);
-  }
-}
-```
-
----
-
-## 设计系统（不可硬编码）
-
-### 颜色
-✅ `AppColors.primary`、`AppColors.error`、`AppColors.textPrimary`
-❌ `Color(0xFF...)`、`Colors.blue`、内联 hex 值
-
-### 间距
-✅ `AppSpacing.xs`(4)、`AppSpacing.sm`(8)、`AppSpacing.md`(16)、`AppSpacing.lg`(24)、`AppSpacing.xl`(32)
-✅ `AppSpacing.screenHorizontal`(24)、`AppSpacing.screenVertical`(16)
-❌ `EdgeInsets.all(16.0)`、硬编码 padding
-
-### 圆角
-✅ `AppRadius.sm`(8)、`AppRadius.md`(12)、`AppRadius.lg`(16)、`AppRadius.xl`(24)
-❌ `BorderRadius.circular(12)`、内联圆角值
-
-### 字体
-✅ `AppTypography.headlineLarge`、`AppTypography.bodyMedium`、`theme.textTheme.bodyMedium`
-❌ `TextStyle(fontSize: 16)`、内联文字样式
-
----
-
-## UI 模式
-
-### Page / View 分离（强制）
-
-- **Page**：通过 `BlocProvider` 创建并提供 BLoC，不包含 UI 逻辑
-- **View**：通过 `BlocBuilder`/`BlocConsumer` 消费状态，不创建 BLoC
-
-```dart
-// feature_page.dart — 提供 BLoC
 class FeaturePage extends StatelessWidget {
+  const FeaturePage({super.key});
+
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (_) => FeatureBloc(repository: context.read()),
+      create: (context) => FeatureBloc(
+        repository: context.read<FeatureRepository>(),
+      )..add(const FeatureStarted()),
       child: const FeatureView(),
     );
   }
 }
+```
 
-// feature_view.dart — 消费 BLoC
+### 2. View
+
+`View` 只负责：
+
+- 消费 BLoC 状态
+- 派发用户事件
+- 组织页面结构
+- 承担必要副作用入口，例如 `SnackBar`、导航、弹窗
+
+`View` 不负责：
+
+- 直接发请求
+- 编排业务流程
+- 做数据映射
+- 写大段嵌套 UI
+
+### 3. Feature Widgets
+
+业务 Widget 只负责表现层细节：
+
+- 接收展示数据
+- 接收回调
+- 内部结构清晰
+
+不要让业务 Widget 直接依赖 repository 或 datasource。
+
+### 4. Bloc / Cubit
+
+负责：
+
+- 接收事件或方法调用
+- 驱动状态变化
+- 编排 use case
+- 调用 repository
+- 输出可消费状态
+
+不负责：
+
+- 直接调用 SDK / HTTP client / Supabase client
+- 写 Widget
+
+### 5. Repository
+
+负责：
+
+- 编排多个数据源
+- DTO 到领域对象的映射
+- 统一错误转换
+
+不负责：
+
+- 持有 UI 状态
+- 写 Widget 相关逻辑
+
+### 6. Datasource
+
+负责：
+
+- 直接调用 SDK / API / 数据库存取
+
+不负责：
+
+- 业务编排
+- UI 可读状态的组织
+
+## 数据流
+
+标准数据流：
+
+```text
+UI event
+→ Bloc/Cubit
+→ Repository
+→ Datasource
+→ Repository 映射结果
+→ Bloc/Cubit emit 新状态
+→ View 渲染
+```
+
+禁止以下反向污染：
+
+- `View` 直接调 `Datasource`
+- `Repository` 持有 `BuildContext`
+- `Bloc` 直接依赖另一个 `Bloc`
+
+如果多个 BLoC 需要共享信息，优先通过以下方式解决：
+
+- 共享 repository
+- UI 层协调派发事件
+- 更上层的组合 bloc/cubit
+
+## View 层实现规则
+
+### 1. Page / View 强制分离
+
+- `feature_page.dart`：创建并提供 bloc
+- `feature_view.dart`：消费状态并组织页面
+
+### 2. View 必须按 no-nesting 组织
+
+`feature_view.dart` 里：
+
+- 主 `build` 只保留业务区块结构
+- 大块布局骨架抽成函数或业务 Widget
+- 事件通过 `context.read<FeatureBloc>().add(...)` 派发
+- 页面里的业务区块拆进 `view/widgets/`
+- `BlocBuilder / BlocListener / BlocConsumer / BlocSelector` 属于状态消费工具，不应主导页面骨架
+
+示例：
+
+```dart
 class FeatureView extends StatelessWidget {
   const FeatureView({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return GradientScaffold(
-      body: SafeArea(
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(AppSpacing.screenHorizontal),
-              child: HeaderWidget(),
-            ),
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.screenHorizontal,
-                ),
-                child: BlocConsumer<FeatureBloc, FeatureState>(
-                  listener: (context, state) {
-                    if (state is FeatureError) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(state.message),
-                          backgroundColor: AppColors.error,
-                        ),
-                      );
-                    }
-                  },
-                  builder: (context, state) {
-                    if (state is FeatureLoading) {
-                      return const Center(child: CircularProgressIndicator());
-                    }
-                    if (state is FeatureSuccess) {
-                      return SuccessWidget(data: state.data);
-                    }
-                    return const SizedBox.shrink();
-                  },
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(AppSpacing.screenHorizontal),
-              child: ActionButton(
-                onPressed: () =>
-                    context.read<FeatureBloc>().add(const ActionEvent()),
-              ),
-            ),
-          ],
-        ),
-      ),
+    return _buildPage(children: [
+      _buildHeaderSection(),
+      _buildBodySection(),
+    ]);
+  }
+
+  Widget _buildHeaderSection() {
+    return BlocSelector<FeatureBloc, FeatureState, HeaderData>(
+      selector: (state) => state.header,
+      builder: (context, header) {
+        return FeatureHeader(
+          data: header,
+          onRefresh: () =>
+              context.read<FeatureBloc>().add(const FeatureRefreshed()),
+        );
+      },
+    );
+  }
+
+  Widget _buildBodySection() {
+    return BlocConsumer<FeatureBloc, FeatureState>(
+      listener: (context, state) {
+        if (state.status == FeatureStatus.failure) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(state.errorMessage ?? 'Request failed')),
+          );
+        }
+      },
+      builder: (context, state) {
+        return FeatureBody(
+          data: state.sections,
+          isLoading: state.status == FeatureStatus.loading,
+          onRetry: () =>
+              context.read<FeatureBloc>().add(const FeatureRetried()),
+          onItemTap: (item) => context
+              .read<FeatureBloc>()
+              .add(FeatureItemTapped(item: item)),
+        );
+      },
     );
   }
 }
 ```
 
-### context.read vs context.watch
+推荐做法：
 
-| 用法 | 场景 |
-|------|------|
-| `context.read<Bloc>().add(Event())` | 回调中派发事件（`onPressed`、`onTap`） |
-| `context.watch<Bloc>().state` | `build` 方法中监听状态 |
-| `BlocBuilder` | 仅需重建 UI |
-| `BlocListener` | 仅需副作用（导航、SnackBar） |
-| `BlocConsumer` | 同时需要重建 + 副作用 |
-| `BlocSelector` | 仅监听状态的某个字段变化 |
+- 页面主结构先用 `_buildPage(children: [...])` 固定下来
+- 每个业务区块再在内部接 `BlocBuilder` / `BlocConsumer`
+- 让状态消费工具服务于业务区块，而不是反过来控制整页结构
 
-**禁止**在 `build` 方法之外使用 `context.watch`。
+如果 `FeatureView` 的 `build` 已经开始出现长链容器、嵌套滚动、多层列表细节，或者顶层只剩一个巨大的 `BlocConsumer`，就回到 `flutter-no-nesting` 继续拆。
 
----
+### 3. 副作用和重建分开考虑
+
+- 仅重建 UI：`BlocBuilder`
+- 仅副作用：`BlocListener`
+- 两者都有：`BlocConsumer`
+- 只关心某个字段：`BlocSelector`
+
+不要为了省事一律使用 `BlocConsumer`。
+
+### 4. 事件派发用 `context.read`
+
+推荐：
+
+```dart
+onPressed: () => context.read<LoginBloc>().add(const LoginSubmitted())
+```
+
+不要在回调里用 `watch`。
+
+## 事件与状态规范
+
+### 1. 事件命名要表达业务动作
+
+推荐：
+
+- `FeatureStarted`
+- `FeatureRefreshed`
+- `FeatureLoadMoreRequested`
+- `LoginSubmitted`
+- `ProfileAvatarTapped`
+
+不推荐：
+
+- `DoFeature`
+- `ClickButton`
+- `GetData`
+
+### 2. 状态设计先选一种风格
+
+常用两种：
+
+- 单状态类 + `status enum`
+- 多子类状态
+
+如果大部分字段共享，优先单状态类：
+
+```dart
+enum FeatureStatus { initial, loading, success, failure }
+
+class FeatureState extends Equatable {
+  const FeatureState({
+    this.status = FeatureStatus.initial,
+    this.items = const [],
+    this.errorMessage,
+  });
+
+  final FeatureStatus status;
+  final List<Item> items;
+  final String? errorMessage;
+
+  FeatureState copyWith({
+    FeatureStatus? status,
+    List<Item>? items,
+    String? errorMessage,
+  }) {
+    return FeatureState(
+      status: status ?? this.status,
+      items: items ?? this.items,
+      errorMessage: errorMessage ?? this.errorMessage,
+    );
+  }
+
+  @override
+  List<Object?> get props => [status, items, errorMessage];
+}
+```
+
+如果不同状态的数据结构差异很大，再用多子类状态。
+
+### 3. 保证值相等和不可变
+
+状态和事件必须具备稳定的值语义。通常使用：
+
+- `Equatable`
+- 或项目已有的等价不可变方案
+
+不要让 state 里塞可变对象然后原地修改。
+
+## Bloc / Cubit 编写规则
+
+### 1. 异步流程必须显式表达状态变化
+
+常见流程：
+
+- `initial`
+- `loading`
+- `success`
+- `failure`
+
+不要让页面在“请求中”和“空数据”之间无法区分。
+
+### 2. 错误状态必须可被 UI 消费
+
+错误至少应提供：
+
+- 用户可展示的信息，或可映射信息
+- UI 可判定的失败状态
+
+不要只 `print(e)` 或吞掉异常。
+
+### 3. Bloc 不直接做底层调用
+
+错误：
+
+```dart
+final data = await supabase.from('items').select();
+```
+
+正确：
+
+```dart
+final data = await repository.fetchItems();
+```
+
+### 4. 不在 Bloc 中塞 UI 组件概念
+
+不要在 bloc/state/event 中出现：
+
+- `TextEditingController`
+- `BuildContext`
+- `Color`
+- `Widget`
+
+除非项目明确有特殊约束，否则这些都属于 UI 层。
 
 ## 测试规范
 
-- **使用 `blocTest()`**（`package:bloc_test`）测试所有 Bloc 和 Cubit，禁止用原始 `test()` + 手动 stream 断言
-- **使用 `package:mocktail` 进行 mock**，禁止 `package:mockito`
-- 测试文件镜像功能目录结构，放在 `test/` 下
+### 1. Bloc/Cubit 用 `blocTest`
 
-### Cubit 测试示例
+优先使用：
 
-```dart
-group('CounterCubit', () {
-  late CounterCubit cubit;
+- `package:bloc_test`
+- `package:mocktail`
 
-  setUp(() => cubit = CounterCubit());
-  tearDown(() => cubit.close());
+### 2. 至少覆盖这些场景
 
-  test('初始状态为 0', () => expect(cubit.state, 0));
+- 初始状态
+- 成功路径
+- 失败路径
+- 重试或刷新路径
+- 关键事件的状态序列
 
-  blocTest<CounterCubit, int>(
-    'increment 后 emit 1',
-    build: () => CounterCubit(),
-    act: (cubit) => cubit.increment(),
-    expect: () => [1],
-  );
-});
-```
-
-### Bloc 测试示例
+### 3. 示例
 
 ```dart
 class MockFeatureRepository extends Mock implements FeatureRepository {}
 
-group('FeatureBloc', () {
-  late MockFeatureRepository repository;
-  late FeatureBloc bloc;
+void main() {
+  group('FeatureBloc', () {
+    late MockFeatureRepository repository;
 
-  setUp(() {
-    repository = MockFeatureRepository();
-    bloc = FeatureBloc(repository: repository);
+    setUp(() {
+      repository = MockFeatureRepository();
+    });
+
+    blocTest<FeatureBloc, FeatureState>(
+      'emit [loading, success] when request succeeds',
+      build: () {
+        when(() => repository.fetchItems()).thenAnswer((_) async => fakeItems);
+        return FeatureBloc(repository: repository);
+      },
+      act: (bloc) => bloc.add(const FeatureStarted()),
+      expect: () => [
+        isA<FeatureState>().having(
+          (state) => state.status,
+          'status',
+          FeatureStatus.loading,
+        ),
+        isA<FeatureState>().having(
+          (state) => state.status,
+          'status',
+          FeatureStatus.success,
+        ),
+      ],
+    );
   });
-
-  tearDown(() => bloc.close());
-
-  blocTest<FeatureBloc, FeatureState>(
-    '请求成功时 emit [Loading, Success]',
-    build: () {
-      when(() => repository.fetchData()).thenAnswer((_) async => fakeData);
-      return FeatureBloc(repository: repository);
-    },
-    act: (bloc) => bloc.add(const FeatureActionRequested()),
-    expect: () => [isA<FeatureLoading>(), isA<FeatureSuccess>()],
-  );
-});
+}
 ```
 
----
+## 推荐工作流
 
-## 核心规则（一票否决）
+当用户要求你实现一个 Flutter BLoC 功能时，按这个顺序执行：
 
-| 规则 | 正确 | 错误 |
-|------|------|------|
-| 异步前 emit Loading | ✅ 必须 | ❌ 跳过 Loading |
-| 业务逻辑位置 | ✅ BLoC/Cubit | ❌ Widget/Page |
-| SDK 调用位置 | ✅ Datasource | ❌ Repository 直接调用 |
-| BLoC 间通信 | ✅ 通过 UI 或共享 Repository | ❌ BLoC 直接依赖另一个 BLoC |
-| 颜色/间距/字体 | ✅ 设计系统常量 | ❌ 硬编码值 |
-| 错误提示 | ✅ SnackBar + AppColors.error | ❌ print / 忽略 |
-| Event/State 相等性 | ✅ Equatable | ❌ 不实现 |
-| 测试 mock | ✅ mocktail | ❌ mockito |
+1. 先判断是 `Cubit` 还是 `Bloc`。
+2. 定义 view 需要消费的状态，而不是先写 Widget。
+3. 设计事件或方法入口。
+4. 明确 repository 和 datasource 边界。
+5. 写 `Page` 提供 bloc。
+6. 写 `View` 消费状态，并按 `flutter-no-nesting` 拆分结构。
+7. 写 feature widgets，只传数据和回调。
+8. 为 bloc/cubit 写测试。
 
----
+## 禁忌项
 
-## 提交前检查清单
+不要这样写：
 
-- [ ] Event/State/BLoC 使用 `Equatable`（或 sealed class）
-- [ ] 所有异步操作：Loading → Success/Error
-- [ ] UI 中无业务逻辑
-- [ ] Datasource 之外无 SDK 直接调用
-- [ ] 零硬编码颜色/间距/字体
-- [ ] 错误处理使用 SnackBar + `AppColors.error`
-- [ ] 使用 `blocTest()` 编写测试，mock 用 `mocktail`
-- [ ] Page 提供 BLoC，View 消费 BLoC
-- [ ] 代码已通过 `dart format`
+- 在 `View` 里直接请求接口
+- 在 `Page` 里写整页复杂 UI
+- 在 `Bloc` 里直接调 SDK
+- 一个 `build` 里堆满 `BlocConsumer + Column + Expanded + Padding + List.generate + InkWell`
+- 事件名、状态名没有业务语义
+- 失败状态没有落到 UI 可消费结构
+- 为了用 BLoC 而用 BLoC，简单局部状态也强行上事件流
+
+## 提交前检查
+
+- [ ] 已判断这次该用 `Cubit` 还是 `Bloc`
+- [ ] `Page` 只负责提供 bloc，`View` 只负责消费和组织页面
+- [ ] view 层结构遵循 `flutter-no-nesting`
+- [ ] `Bloc/Cubit` 不直接调用 SDK
+- [ ] `Repository` 和 `Datasource` 职责分离
+- [ ] 事件和状态命名有明确业务语义
+- [ ] 异步流程能区分 loading / success / failure
+- [ ] 错误状态能被 UI 正常消费
+- [ ] 测试覆盖关键状态流
+
+## 一句话原则
+
+**Bloc 管状态流，Repository 管数据编排，Datasource 管底层调用，View 必须按 no-nesting 组织。**
