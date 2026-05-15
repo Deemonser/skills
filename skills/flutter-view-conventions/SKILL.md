@@ -1,10 +1,10 @@
 ---
-name: flutter-no-nesting
-description: 用于编写、重构或评审 Flutter 页面结构，尤其当页面出现“嵌套过深”“套娃”“widget tree 过长”“页面难维护”时使用。适用于把复杂页面重构为“view 组合 + function 骨架 + 业务 widget + builder 列表”的结构。默认采用统一命名的轻量目录：`logic.dart + state.dart + view.dart + widget/`；页面进入事件流模式时，再增加 `event.dart`。
-version: 4.0.0
+name: flutter-view-conventions
+description: 用于编写、重构或评审 Flutter view 层代码。仅在用户明确要求实现、重构、修复、评审 Flutter 页面或组件代码，并且需要实际修改 view 结构时使用。约束内容包括：`view.dart + logic.dart + state.dart + widget/` 的页面组织方式、业务区块拆分、布局骨架函数抽离、事件统一上提、以及列表 builder 结构。不用于闲聊、概念讨论、框架比较或未进入实现阶段的方案交流。
+version: 5.0.0
 ---
 
-# Flutter No Nesting
+# Flutter View Conventions
 
 这个 skill 基于《Flutter 改善套娃地狱问题（仿喜马拉雅PC页面举例）》的方法论。
 
@@ -24,11 +24,18 @@ version: 4.0.0
 
 ## 什么时候用
 
+- 用户明确要求修改 Flutter 页面或组件代码
+- 当前任务的重点是 `view` 层结构、页面可读性、业务区块拆分
 - 页面 `build` 超过一屏，读代码要靠数括号
 - 页面同时混着布局细节、业务区块、事件回调、列表循环
 - 后续会频繁改样式、改交互、插区块，但当前结构很难下手
-- 页面已经有状态管理框架，但 view 层仍然是一大坨
-- 用户明确提到“去嵌套”“套娃地狱”“页面结构优化”“按业务模块拆 Widget”
+
+不要用于：
+
+- 闲聊
+- 纯概念讨论
+- 框架比较
+- 尚未进入实现阶段的方案交流
 
 ## 目录结构
 
@@ -60,12 +67,6 @@ module_name/
 - `event.dart`：仅事件流模式存在
 - `widget/module_name_function.dart`：稳定骨架函数
 - `widget/*.dart`：具体业务区块
-
-说明：
-
-- 不用 `flutter_bloc` 时，`logic.dart` 可以是轻逻辑层
-- 用 `flutter_bloc` 但只是页面状态时，`logic.dart` 通常实现为 `Cubit`
-- 用 `flutter_bloc` 且是事件流时，`logic.dart` 通常实现为 `Bloc`，并额外增加 `event.dart`
 
 ## 先判断拆分层级
 
@@ -215,12 +216,6 @@ class FeatureGuess extends StatelessWidget {
 }
 ```
 
-例外：
-
-- 通用组件
-- 设计系统组件
-- 需要跨多模块复用的低耦合组件
-
 ### 3. 所有交互事件必须上提暴露
 
 用户交互不能悄悄消化在 UI 内部。
@@ -274,12 +269,6 @@ Widget _buildItemBg({
 }
 ```
 
-规则：
-
-- 列表容器负责循环
-- 具体 item 结构通过 `itemBuilder` 回传
-- 不要把完整 `List.generate(...)` 直接糊在主 `build` 的 `children` 中
-
 ### 6. 双层列表必须拆成 `itemBuilder + subBuilder`
 
 ```dart
@@ -310,26 +299,12 @@ Widget _buildSubItemListBg(
 
 双层列表不这样拆，代码很快就会重新长回去。
 
-### 7. 状态管理实现不改变这套 view 规则
-
-无论 `logic.dart` 内部是：
-
-- 轻逻辑层
-- Cubit
-- Bloc
-
-都应该保持：
-
-- view 只看业务结构
-- 业务事件统一向上暴露
-- 布局骨架单独封装
-
 ## 推荐工作流
 
 1. 先读当前页面，标出页面级业务区块
 2. 找出所有用户交互点，确认哪些事件需要上提
 3. 先抽 `view.dart` 的稳定骨架到 `widget/[module]_function.dart`
-4. 再按业务含义拆 `widget/*.dart`，不要按视觉碎片乱拆
+4. 再按业务含义拆 `widget/*.dart`
 5. 进入每个业务 Widget，把 `children` 重写成 `_buildXxx()` 结构
 6. 遇到单层列表，用 `itemBuilder`
 7. 遇到双层列表，用 `itemBuilder + subBuilder`
@@ -357,4 +332,4 @@ Widget _buildSubItemListBg(
 
 ## 一句话原则
 
-**统一命名为 `logic.dart`，主页面看组合，function 看骨架，widget 看区块，builder 吃列表。**
+**主页面看组合，function 看骨架，widget 看区块，builder 吃列表，事件统一上提。**

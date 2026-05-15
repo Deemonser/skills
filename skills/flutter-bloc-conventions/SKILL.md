@@ -1,12 +1,12 @@
 ---
-name: flutter-bloc-development
-description: 用于编写、重构或评审基于 flutter_bloc 的 Flutter 页面功能。默认采用统一命名的轻量目录：`logic.dart + state.dart + view.dart + widget/`；当页面进入事件流模式时，再增加 `event.dart`。复杂数据场景再扩展 `data/repositories` 和 `data/datasources`。view 层必须同时遵循 flutter-no-nesting。
+name: flutter-bloc-conventions
+description: 用于编写、重构或评审基于 flutter_bloc 的 Flutter 页面代码。仅在用户明确要求实现、重构、修复、评审 Flutter 页面状态管理代码，并且需要实际修改 `logic / state / event / data` 结构时使用。约束内容包括：`logic.dart + state.dart + view.dart + widget/` 的轻量目录、Bloc/Cubit 选择、事件与状态设计、provider 生命周期、数据流边界、副作用与重建分离、以及 bloc_test 测试规范。view 层结构细则依赖 flutter-view-conventions。不用于闲聊、概念讨论、框架比较或未进入实现阶段的方案交流。
 version: 5.0.0
 ---
 
-# Flutter BLoC 开发规范
+# Flutter BLoC Conventions
 
-这个 skill 约束 **BLoC/Cubit 分层、数据流、provider 生命周期、副作用处理、重建控制、测试方式**，并要求 view 层遵循 `flutter-no-nesting`。
+这个 skill 约束 **BLoC/Cubit 分层、数据流、provider 生命周期、副作用处理、重建控制、测试方式**，并要求 view 层遵循 `flutter-view-conventions`。
 
 目标：
 
@@ -18,10 +18,16 @@ version: 5.0.0
 
 ## 什么时候用
 
-- 新建一个使用 `flutter_bloc` 的功能或页面
-- 给已有页面接入状态管理
-- 重构 `view / widget / logic / state / event / repository / datasource`
-- 评审事件、状态、数据流是否清晰
+- 用户明确要求修改基于 `flutter_bloc` 的 Flutter 页面代码
+- 当前任务需要实际调整 `logic / state / event / data` 结构
+- 需要设计或重构状态流、事件流、provider 生命周期、bloc 测试
+
+不要用于：
+
+- 闲聊
+- 纯概念讨论
+- 框架比较
+- 尚未进入实现阶段的方案交流
 
 ## 命名约定
 
@@ -246,7 +252,7 @@ BlocProvider.value(
 
 ## View 规则
 
-view / widget 结构细则遵循 `flutter-no-nesting`，这里不重复展开，只强调：
+view / widget 结构细则遵循 `flutter-view-conventions`，这里不重复展开，只强调：
 
 - 页面骨架先建立，再挂状态消费工具
 - 复杂区块拆进 `widget/`
@@ -428,7 +434,7 @@ blocTest<FeatureLogic, FeatureState>(
 3. 如果是事件流模式，再补 `event.dart`
 4. 明确是否需要 `data/repositories` 和 `data/datasources`
 5. 写 `view.dart` 提供 logic
-6. 按 `flutter-no-nesting` 拆出 `widget/` 下的业务区块
+6. 按 `flutter-view-conventions` 拆出 `widget/` 下的业务区块
 7. 把状态消费工具嵌进具体区块
 8. 为 logic 写测试
 
@@ -447,7 +453,7 @@ blocTest<FeatureLogic, FeatureState>(
 - [ ] 已判断 `logic.dart` 内部该用 `Cubit` 还是 `Bloc`
 - [ ] 目录结构采用核心结构，必要时才扩展 `event.dart` 和 `data/`
 - [ ] `view.dart` 负责提供 logic 并组织页面，内部职责分离清楚
-- [ ] view 层结构遵循 `flutter-no-nesting`
+- [ ] view 层结构遵循 `flutter-view-conventions`
 - [ ] `logic.dart` 不直接调用 SDK
 - [ ] 引入 `Repository / Datasource` 时边界清楚
 - [ ] 事件和状态命名有明确业务语义
