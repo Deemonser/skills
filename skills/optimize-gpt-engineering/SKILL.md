@@ -75,7 +75,7 @@ Locate the effective user Codex config: `$CODEX_HOME/config.toml` when `CODEX_HO
 ```toml
 [agents]
 default_subagent_model = "gpt-5.6-luna"
-default_subagent_reasoning_effort = "max"
+default_subagent_reasoning_effort = "xhigh"
 ```
 
 - Replace only conflicting values; do not create a second `[agents]` table or change the primary
@@ -103,7 +103,7 @@ Before finalizing a proposed rule set, verify that it produces the intended deci
   blanket refusal to delegate; redundant agents are used only for risk-justified confirmation.
 - A worker returns concise artifacts and evidence. The commander reviews and integrates them in
   proportion to risk rather than either accepting a cross-cutting decision or redoing settled work.
-- An unoverridden subagent resolves to `gpt-5.6-luna` with `max` effort after configuration reload;
+- An unoverridden subagent resolves to `gpt-5.6-luna` with `xhigh` effort after configuration reload;
   an explicit or project override is detected rather than mistaken for the default.
 - A simple function whose result is evident from inspection gets no test. Even a change at a named
   high-risk boundary gets a test only when a plausible material failure cannot be settled more
