@@ -1,0 +1,6 @@
+interface:
+  display_name: "Spec + Domain Driven Development"
+  short_description: "Establish specs and domain boundaries before coding"
+  default_prompt: "Use $spec-domain-driven-development to establish the project specification and domain model before implementation."
+policy:
+  allow_implicit_invocation: false

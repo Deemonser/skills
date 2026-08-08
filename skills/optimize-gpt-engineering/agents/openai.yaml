@@ -1,0 +1,6 @@
+interface:
+  display_name: "GPT Engineering Optimizer"
+  short_description: "Apply a fixed GPT engineering policy template"
+  default_prompt: "Use $optimize-gpt-engineering to directly apply the canonical delegation, strict test-restraint, whole-system review, and risk-proportionate security template plus Codex worker defaults."
+policy:
+  allow_implicit_invocation: false
