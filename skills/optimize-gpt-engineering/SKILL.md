@@ -1,6 +1,6 @@
 ---
 name: optimize-gpt-engineering
-description: "Directly apply a canonical, minimally adapted AGENTS.md policy that optimizes GPT coding-agent behavior across commander-led subagent delegation, strict testing restraint, and one-pass architecture-first review with risk-proportionate security; also align Codex subagent defaults. Explicit invocation of $optimize-gpt-engineering authorizes the relevant local edits by default; remain read-only only when the user explicitly forbids changes."
+description: "Directly apply a canonical, minimally adapted AGENTS.md policy that optimizes GPT coding-agent behavior across proactive token-efficient commander-led delegation, strict testing restraint, and one-pass architecture-first review with risk-proportionate security; also align Codex subagent defaults. Explicit invocation of $optimize-gpt-engineering authorizes the relevant local edits by default; remain read-only only when the user explicitly forbids changes."
 ---
 
 # Optimize GPT Engineering Behavior
@@ -94,18 +94,25 @@ default_subagent_reasoning_effort = "max"
 
 Before finalizing a proposed rule set, verify that it produces the intended decision in each case:
 
-- The commander retains a small, coupled, architecture-critical, or Luna-unsuitable task; it
-  delegates a substantial independent bundle that Luna can complete with local context.
-- A delegated result is reviewed and integrated by the commander rather than accepted as the final
-  cross-cutting decision.
+- The commander directly completes trivial work cheaper than handoff, but delegates bounded
+  discovery, analysis, implementation, or validation without requiring the work to be large or
+  dependency-free. For architecture-critical work, it retains the decision while delegating
+  separable evidence or execution.
+- Obvious workstreams are dispatched before the commander duplicates their exploration. Sequencing,
+  setup, and shared files lead to explicit prerequisites or ownership boundaries rather than a
+  blanket refusal to delegate; redundant agents are used only for risk-justified confirmation.
+- A worker returns concise artifacts and evidence. The commander reviews and integrates them in
+  proportion to risk rather than either accepting a cross-cutting decision or redoing settled work.
 - An unoverridden subagent resolves to `gpt-5.6-luna` with `max` effort after configuration reload;
   an explicit or project override is detected rather than mistaken for the default.
 - A simple function whose result is evident from inspection gets no test. Even a change at a named
   high-risk boundary gets a test only when a plausible material failure cannot be settled more
   cheaply; a narrow change does not trigger a broad suite without evidence of wider coupling.
-- A repository-wide review maps the relevant system and completes its declared breadth pass before
-  any ordinary reporting or patching, evaluates cross-component consistency, and returns material
-  findings together under architectural root causes rather than drip-feeding symptoms.
+- A repository-wide review remains commander-executed: the commander maps the relevant system,
+  completes the primary breadth and cross-component pass before ordinary reporting or patching, and
+  returns material findings together under architectural root causes. Workers may collect bounded
+  evidence or independently verify a suspected issue, but their output neither replaces commander
+  review nor counts as coverage before commander inspection and integration.
 - A security review prioritizes reachable high-impact boundaries. New controls require a concrete
   asset, threat source, realistic attack path, and verifiable result; low-value theoretical checks
   do not expand implementation or obscure major risk.
