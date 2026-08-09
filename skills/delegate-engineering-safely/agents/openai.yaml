@@ -1,0 +1,6 @@
+interface:
+  display_name: "Safe Engineering Delegation"
+  short_description: "Delegate bounded work while retaining integration ownership"
+  default_prompt: "Use $delegate-engineering-safely to divide this engineering task without losing architectural control."
+policy:
+  allow_implicit_invocation: true

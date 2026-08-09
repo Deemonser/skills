@@ -1,0 +1,6 @@
+interface:
+  display_name: "Reachable-Risk Security Review"
+  short_description: "Prioritize concrete reachable security risks and controls"
+  default_prompt: "Use $review-reachable-security to assess and reduce realistic security risk at the right boundary."
+policy:
+  allow_implicit_invocation: true

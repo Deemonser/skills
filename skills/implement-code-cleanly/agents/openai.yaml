@@ -1,0 +1,6 @@
+interface:
+  display_name: "Clean Code Implementation"
+  short_description: "Implement focused code without needless indirection"
+  default_prompt: "Use $implement-code-cleanly to implement this change with the smallest coherent design."
+policy:
+  allow_implicit_invocation: true

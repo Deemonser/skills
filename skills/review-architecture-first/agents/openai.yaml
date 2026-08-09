@@ -1,0 +1,6 @@
+interface:
+  display_name: "Architecture-First Review"
+  short_description: "Review ownership, boundaries, flows, and invariants first"
+  default_prompt: "Use $review-architecture-first to review this system from architecture to concrete findings."
+policy:
+  allow_implicit_invocation: true
