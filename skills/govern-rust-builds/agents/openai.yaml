@@ -1,0 +1,4 @@
+interface:
+  display_name: "Rust Build Governance"
+  short_description: "Keep Cargo builds fast, scoped, and disk-bounded"
+  default_prompt: "Use $govern-rust-builds to plan and run the narrowest safe Cargo validation without fragmenting caches."

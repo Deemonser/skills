@@ -7,6 +7,6 @@ Local skill collection.
 - `delegate-engineering-safely` - bounded engineering delegation with primary-agent ownership.
 - `review-architecture-first` - system review centered on ownership, flows, and invariants.
 - `review-reachable-security` - security review centered on concrete reachable risk.
-- `flutter-bloc-conventions` - project Flutter BLoC conventions.
 - `flutter-view-conventions` - project Flutter view conventions.
 - `spec-domain-driven-development` - explicitly invoked SDD and proportionate DDD workflow.
+- `govern-rust-builds` - scoped, cache-coherent, disk-bounded Cargo workflows.

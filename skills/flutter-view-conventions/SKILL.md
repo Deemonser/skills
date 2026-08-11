@@ -1,335 +1,126 @@
 ---
 name: flutter-view-conventions
-description: 用于编写、重构或评审 Flutter view 层代码。仅在用户明确要求实现、重构、修复、评审 Flutter 页面或组件代码，并且需要实际修改 view 结构时使用。约束内容包括：`view.dart + logic.dart + state.dart + widget/` 的页面组织方式、业务区块拆分、布局骨架函数抽离、事件统一上提、以及列表 builder 结构。不用于闲聊、概念讨论、框架比较或未进入实现阶段的方案交流。
-version: 5.0.0
+description: "Structure, refactor, and review complex Flutter views with a clear hierarchy from native or third-party controls to business-independent controls, business controls, and pages. Use when Flutter page or component code has deeply nested Widget trees, obscured screen structure, mixed interaction handling, unclear component boundaries, or hard-to-read list and sub-list rendering. Do not use for state-management design alone or non-implementation discussion."
 ---
 
 # Flutter View Conventions
 
-这个 skill 基于《Flutter 改善套娃地狱问题（仿喜马拉雅PC页面举例）》的方法论。
+Make Flutter views readable by exposing business structure and hiding stable layout details behind
+meaningful control boundaries. Preserve behavior and rendering unless the user requests a change.
 
-目标不是机械减少 Widget 层级，而是把页面改造成：
+## Enforce the four-level hierarchy
 
-- 结构一眼可读
-- 事件入口集中
-- 局部修改成本低
-- 页面复杂但不失控
-
-核心思想：
-
-- `view.dart` 只负责组合业务区块和暴露事件入口
-- `widget/[module]_function.dart` 吃掉稳定布局骨架
-- 每个业务区块拆成有业务语义的 Widget
-- 列表区块用 `itemBuilder / subBuilder` 组织，而不是把循环细节堆在主结构里
-
-## 什么时候用
-
-- 用户明确要求修改 Flutter 页面或组件代码
-- 当前任务的重点是 `view` 层结构、页面可读性、业务区块拆分
-- 页面 `build` 超过一屏，读代码要靠数括号
-- 页面同时混着布局细节、业务区块、事件回调、列表循环
-- 后续会频繁改样式、改交互、插区块，但当前结构很难下手
-
-不要用于：
-
-- 闲聊
-- 纯概念讨论
-- 框架比较
-- 尚未进入实现阶段的方案交流
-
-## 目录结构
-
-这份 skill 只约束 view 组织方式，不强绑具体状态管理实现。默认统一采用：
+Build abstractions upward in this order:
 
 ```text
-module_name/
-├── logic.dart
-├── state.dart
-├── view.dart
-└── widget/
-    ├── module_name_function.dart
-    ├── module_name_section_a.dart
-    └── ...
+原生或第三方控件 -> 业务无关控件 -> 业务控件 -> 页面
 ```
 
-如果页面进入明确的事件流模式，再增加：
+Allow upper levels to compose lower levels. Do not let a lower level import or depend on concepts
+from a higher level. Classify each new or moved Widget before choosing its name and location.
+
+### Native or third-party controls
+
+Treat Flutter SDK and package Widgets as primitive rendering, layout, input, and platform
+capabilities. Keep project business names, domain models, and business actions out of this level.
+
+### Business-independent controls
+
+Build reusable project controls from native or third-party controls. Keep their APIs generic and
+independent of features, domain entities, page state, and business actions. Accept generic values,
+children, builders, and callbacks.
+
+Place these controls in the repository's shared UI or toolkit area. Do not promote a page-private
+layout helper to this level merely because it is stateless or accepts `Widget` children.
+
+### Business controls
+
+Represent a meaningful feature region such as navigation, account tools, recommendations, ranking,
+or a playback console. Compose lower-level controls and hide padding, decoration, traversal, and
+primitive Widget details that the page does not need to understand.
+
+- Prefer one coherent view model or main data source for a page-specific business control.
+- Expose business interactions as callbacks; keep navigation and business decisions in the owner.
+- Keep purely visual local state inside the control when it has no business meaning.
+- Name the control after its business region rather than its visual container.
+- Split a child into another business control only when it has independent business meaning, data,
+  events, reuse, or maintenance ownership.
+
+### Page
+
+Use the page as the view composition root:
+
+- Bind the repository's existing state and logic mechanism.
+- Compose page skeleton helpers and business controls in visible screen order.
+- Pass business controls their data and callbacks.
+- Keep major regions and interaction entrances discoverable in the page.
+- Keep detailed styling, primitive Widget trees, and list traversal out of the page.
+
+Do not introduce or replace a state-management framework to satisfy this skill. Preserve the
+repository's existing mechanism and apply this view flow:
 
 ```text
-module_name/
-├── event.dart
+state/logic binding -> page -> data + callbacks -> business controls
 ```
 
-对应关系：
+## Expose meaningful structure
 
-- `view.dart`：主页面，只做组合和事件转发
-- `logic.dart`：统一的逻辑层坑位
-- `state.dart`：页面数据源或页面状态
-- `event.dart`：仅事件流模式存在
-- `widget/module_name_function.dart`：稳定骨架函数
-- `widget/*.dart`：具体业务区块
+Treat the `children` of major `Row`, `Column`, and equivalent layouts as the readable outline of the
+screen. When stable page-shell details bury that outline, extract them into a page-private file such
+as `widget/[module]_function.dart`.
 
-## 先判断拆分层级
+Let page-private skeleton helpers own details such as the page shell, top/bottom or left/right split,
+scrolling shell, fixed sizing, padding, and alignment. Keep these helpers at page level; move one to
+the shared UI layer only after its contract is genuinely independent of the page and feature.
 
-### 1. View 层
+Inside each business control:
 
-放这里的内容只有：
+1. Let `build` show named visible parts in order.
+2. Move stable details into descriptive `_buildXxx` methods.
+3. Keep background helpers responsible for margin, padding, alignment, decoration, and wrapping.
+4. Keep data and callbacks as the public business contract.
 
-- 页面大区块的组合顺序
-- 页面级状态读取
-- 事件入口转发到 `logic`
+Avoid creating a file for every icon or label. Prefer private methods until a child earns an
+independent boundary.
 
-不要放：
+## Structure collections without hiding behavior
 
-- 大段 `Container / Padding / Row / Column / Expanded`
-- 列表遍历细节
-- 某个业务卡片的样式实现
+For a small or fixed business collection, use an `itemBuilder` callback when it keeps traversal out
+of the visible structure while leaving the per-item composition readable. For nested business data,
+use `itemBuilder + subBuilder` so both levels expose the correct business item.
 
-### 2. Function 骨架层
+For large, dynamic, paginated, or unbounded collections, preserve lazy construction with
+`ListView.builder`, slivers, or the repository's equivalent. Extract item and sub-item composition
+without replacing lazy construction with eager `List.generate`.
 
-适合放进 `widget/[module]_function.dart` 的内容：
+## Apply the workflow
 
-- 页面最外层 `Scaffold`
-- 主 `Row / Column`
-- 左右布局骨架
-- 顶部 / 底部 / 滚动区外壳
+1. Read repository instructions, the target page, related controls, and existing state/logic.
+2. Map the page's major regions in visible order.
+3. Classify touched controls into the four levels and check dependency direction.
+4. Identify each business region, its coherent data input, and its business callbacks.
+5. Make the page compose business controls and bind their callbacks to the owning logic.
+6. Extract page-private skeleton helpers only when stable layout details obscure composition.
+7. Make each business control's `build` expose named parts.
+8. Apply item and sub-item builders where they improve collection readability.
+9. Reuse or create business-independent controls only for genuinely generic project behavior.
+10. Preserve appearance, state ownership, scrolling, rebuild semantics, accessibility, and keys.
+11. Run the narrowest relevant formatter, analyzer, widget test, or visual check.
 
-特征：
+Read [view structure examples](references/view-structure-examples.md) only when classifying an
+ambiguous control, restructuring a complex page, or applying the item/sub-item builder pattern.
 
-- 结构稳定
-- 业务含义弱
-- 写完后改动频率低
+## Validate the result
 
-```dart
-Widget buildPageBg({required List<Widget> children}) {
-  return Scaffold(
-    backgroundColor: Colors.white,
-    body: Column(children: children),
-  );
-}
+Reject the result when:
 
-Widget buildTopArea({required List<Widget> children}) {
-  return Expanded(
-    child: Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: children,
-    ),
-  );
-}
+- The page still contains long primitive Widget trees or hidden collection traversal.
+- A business control invokes page logic directly instead of exposing business callbacks.
+- A business-independent control imports feature state, domain entities, or business logic.
+- A page-private skeleton helper is presented as a generic shared control.
+- Extraction only renames `Container`, `Row`, or `Column` without clarifying a boundary.
+- Excessive extraction fragments one business region into navigation noise.
+- A previously lazy collection becomes eager without a measured reason.
 
-Widget buildScrollableContent({required List<Widget> children}) {
-  return Expanded(
-    child: SingleChildScrollView(
-      child: Column(children: children),
-    ),
-  );
-}
-```
-
-### 3. 业务 Widget 层
-
-适合拆成独立业务 Widget 的内容：
-
-- 搜索区
-- banner 区
-- 猜你喜欢
-- 榜单区
-- 底部控制栏
-
-名字应该体现业务语义，而不是 `_buildContainer2` 这种纯结构语义。
-
-### 4. Widget 内部私有方法层
-
-业务 Widget 内部的 `children`，优先继续拆成 `_buildXxx()` 方法，而不是一上来再新建文件。
-
-适用场景：
-
-- 只在当前 Widget 内使用
-- 想提升 `build` 可读性
-- 没必要抽成独立跨文件组件
-
-## 强制规则
-
-### 1. `view.dart` 只做组合和事件入口
-
-主页面应该像这样：
-
-```dart
-class FeaturePage extends StatelessWidget {
-  const FeaturePage({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return buildPageBg(children: [
-      buildTopArea(children: [
-        FeatureNavigation(
-          data: state.navigation,
-          onTap: (item) => logic.onNavigationTap(item),
-        ),
-        buildScrollableContent(children: [
-          FeatureHeader(
-            data: state.header,
-            onSearchChanged: logic.onSearchChanged,
-            onRefresh: logic.onRefresh,
-          ),
-          FeatureBanner(
-            data: state.bannerList,
-            onTap: logic.onBannerTap,
-          ),
-          FeatureGuess(
-            data: state.guessList,
-            onChange: logic.onGuessChange,
-            onItemTap: logic.onGuessTap,
-          ),
-        ]),
-      ]),
-      FeatureBottomBar(
-        data: state.bottomBar,
-        onPlay: logic.onPlay,
-      ),
-    ]);
-  }
-}
-```
-
-这个层面允许有嵌套，但只能是**业务组合层级**，不能退化成“把所有细节直接写在这里”。
-
-### 2. 非通用业务 Widget 尽量只收一个主数据源
-
-业务 Widget 优先：
-
-- `data + callbacks`
-
-不要默认拆成十几个基础字段。
-
-```dart
-class FeatureGuess extends StatelessWidget {
-  const FeatureGuess({
-    super.key,
-    required this.data,
-    required this.onChange,
-    required this.onItemTap,
-  });
-
-  final List<FeatureItem> data;
-  final VoidCallback onChange;
-  final ValueChanged<FeatureItem> onItemTap;
-}
-```
-
-### 3. 所有交互事件必须上提暴露
-
-用户交互不能悄悄消化在 UI 内部。
-
-必须暴露的典型事件：
-
-- `onTap`
-- `onChanged`
-- `onRefresh`
-- `onLoadMore`
-- `onRetry`
-- `onSortTitle`
-
-目标是让你只看 `view.dart`，就能看到页面主要交互入口。
-
-### 4. 业务 Widget 的 `build` 只保留结构
-
-```dart
-@override
-Widget build(BuildContext context) {
-  return _buildBg(children: [
-    _buildHeader(),
-    _buildItemBg(itemBuilder: (item) {
-      return [
-        _buildPicCard(item),
-        _buildTitle(item),
-        _buildSubTitle(item),
-      ];
-    }),
-  ]);
-}
-```
-
-要求：
-
-- `children` 里的每个块都应该有明确名字
-- 复杂区块建议在 `children` 中写注释
-- `_buildBg` 负责封装 margin、padding、对齐等无关主结构的细节
-
-### 5. 单层列表必须用 builder 反传数据
-
-```dart
-Widget _buildItemBg({
-  required List<Widget> Function(FeatureItem item) itemBuilder,
-}) {
-  return Row(
-    children: List.generate(data.length, (index) {
-      return Column(children: itemBuilder(data[index]));
-    }),
-  );
-}
-```
-
-### 6. 双层列表必须拆成 `itemBuilder + subBuilder`
-
-```dart
-Widget _buildItemListBg({
-  required List<Widget> Function(FeatureGroup item) itemBuilder,
-}) {
-  return Column(
-    children: List.generate(data.length, (index) {
-      return Column(children: itemBuilder(data[index]));
-    }),
-  );
-}
-
-Widget _buildSubItemListBg(
-  FeatureGroup item, {
-  required List<Widget> Function(FeatureItem subItem) subBuilder,
-}) {
-  return Column(
-    children: List.generate(item.items.length, (index) {
-      return InkWell(
-        onTap: () => onTap(item.items[index]),
-        child: Row(children: subBuilder(item.items[index])),
-      );
-    }),
-  );
-}
-```
-
-双层列表不这样拆，代码很快就会重新长回去。
-
-## 推荐工作流
-
-1. 先读当前页面，标出页面级业务区块
-2. 找出所有用户交互点，确认哪些事件需要上提
-3. 先抽 `view.dart` 的稳定骨架到 `widget/[module]_function.dart`
-4. 再按业务含义拆 `widget/*.dart`
-5. 进入每个业务 Widget，把 `children` 重写成 `_buildXxx()` 结构
-6. 遇到单层列表，用 `itemBuilder`
-7. 遇到双层列表，用 `itemBuilder + subBuilder`
-8. 回头检查 `view.dart` 是否只剩“业务组合 + 事件入口”
-
-## 禁忌项
-
-- 只是把一大段代码提成 `_buildFoo()`，但 `view.dart` 里仍然是海量细节
-- 每个小图标、小文字都新建单独文件，拆得只剩碎片
-- 业务 Widget 内部直接调用 `logic`
-- 一个业务 Widget 传十几个字段，丢掉业务语义
-- 把 `List.generate / map / Wrap / Row / Column / GestureDetector` 全堆在主页面 `children`
-- 把 `_buildBg`、滚动容器、`Expanded`、`Scrollbar` 这些脚手架细节留在主页面里
-
-## 验收清单
-
-- [ ] `view.dart` 能在一屏内看懂大致结构
-- [ ] `view.dart` 中能直接看到主要事件入口
-- [ ] 稳定骨架已抽到 `widget/[module]_function.dart`
-- [ ] 业务区块已拆成有业务语义的 Widget
-- [ ] 业务 Widget 内部 `children` 基本都是 `_buildXxx()`
-- [ ] 单层列表已使用 `itemBuilder`
-- [ ] 双层列表已使用 `itemBuilder + subBuilder`
-- [ ] 修改某个区块样式时，可以在 1 次跳转内定位到对应 Widget
-
-## 一句话原则
-
-**主页面看组合，function 看骨架，widget 看区块，builder 吃列表，事件统一上提。**
+Accept the result when the page reads as ordered business composition, each business control reads
+as named visible parts, and a maintainer can locate a region's data and interaction entry directly.

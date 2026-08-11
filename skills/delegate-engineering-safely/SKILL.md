@@ -1,6 +1,6 @@
 ---
 name: delegate-engineering-safely
-description: "Delegate engineering work while preserving architectural and integration ownership. Use only when subagents or parallel engineering work are explicitly requested or otherwise permitted and will actually be used, including reconnaissance, isolated implementation, or independent verification. Do not trigger for ordinary single-agent coding."
+description: "Delegate engineering work while preserving architectural and integration ownership. Use only when the user explicitly invokes $delegate-engineering-safely or explicitly requests commander mode, 指挥官模式, subagents, delegation, or parallel agent work. Never trigger for ordinary single-agent coding or merely because delegation could help."
 ---
 
 # Delegate Engineering Safely

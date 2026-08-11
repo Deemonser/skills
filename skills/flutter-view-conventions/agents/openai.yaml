@@ -1,0 +1,6 @@
+interface:
+  display_name: "Flutter View Conventions"
+  short_description: "Structure Flutter pages with clear control layers"
+  default_prompt: "Use $flutter-view-conventions to restructure this Flutter view into a clear four-level control hierarchy while preserving behavior."
+policy:
+  allow_implicit_invocation: true

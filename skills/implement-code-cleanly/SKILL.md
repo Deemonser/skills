@@ -1,6 +1,6 @@
 ---
 name: implement-code-cleanly
-description: "Implement, debug, refactor, or review code with the smallest coherent design. Use for actual code changes or implementation-quality review where unnecessary helpers, variables, abstractions, adapters, parallel paths, speculative extensibility, or unrelated refactors must be avoided. Do not use for pure explanation or non-code work."
+description: "Implement, debug, refactor, or review code with the smallest coherent design. Use for actual code changes and implementation-quality review, including explicit local quality checkpoints, technical-debt review, small-scope refactoring, and maintainability or performance review of a completed module. Avoid unnecessary helpers, abstractions, parallel paths, speculative extensibility, and unrelated refactors. Do not use for pure explanation, non-code work, or system-wide architecture review."
 ---
 
 # Implement Code Cleanly
@@ -19,6 +19,10 @@ description: "Implement, debug, refactor, or review code with the smallest coher
   that have no present requirement. Minimize concepts and state, not merely line count.
 - Preserve established repository conventions and behavior outside the request. Do not hide a wrong
   ownership or state model behind adapters; repair the owning boundary when the task requires it.
+- When the user explicitly requests a quality checkpoint, technical-debt review, small-scope
+  refactor, or module-level maintainability or performance review, pause feature work and read
+  [Local Quality Checkpoint](references/quality-checkpoint.md). Keep review-only requests read-only;
+  implement the bounded refactor only when requested.
 - Inspect the final diff and simplify it once more. Remove needless indirection, duplicate paths,
   dead code, and orphaned files or dependencies. Every changed line must support requested behavior,
   correctness or safety, or necessary validation.
