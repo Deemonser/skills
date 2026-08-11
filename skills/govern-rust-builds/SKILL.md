@@ -1,12 +1,20 @@
 ---
 name: govern-rust-builds
-description: "Govern Rust and Cargo build scope, cache identity, artifact growth, and development iteration speed. Use before Codex runs or recommends nontrivial Cargo build, check, test, clippy, doc, bench, or clean commands in a Rust project, and when diagnosing repeated recompilation, slow builds, oversized target directories, profile or feature changes, cache configuration, linker bottlenecks, or CI/local cache reuse."
+description: "Govern Rust and Cargo build scope, cache identity, artifact growth, and development iteration speed. Use when the current task will actually execute a nontrivial Cargo build, check, test, clippy, doc, bench, or clean command, or when the user explicitly asks to diagnose or tune repeated recompilation, slow builds, oversized target directories, profiles, features, caches, linkers, or CI/local cache reuse. Do not use for read-only Rust code review, source inspection, language-level discussion, or tasks that will not execute Cargo and require no build-governance decision."
 ---
 
 # Govern Rust Builds
 
 Keep Cargo validation proportionate, cache-coherent, and bounded by available disk. Prefer evidence
 from the current workspace over generic tuning advice.
+
+## Confirm the trigger
+
+Continue only when the current task will execute at least one nontrivial Cargo command, or when the
+user explicitly requested Rust build diagnosis, tuning, cache governance, or disk governance. Stop
+using this skill for read-only Rust review, source inspection, or language discussion when no Cargo
+execution or build-governance decision is in scope. Merely mentioning a possible future Cargo
+command is not enough.
 
 ## Establish the build contract
 
