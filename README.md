@@ -10,3 +10,4 @@ Local skill collection.
 - `flutter-view-conventions` - project Flutter view conventions.
 - `spec-domain-driven-development` - explicitly invoked SDD and proportionate DDD workflow.
 - `govern-rust-builds` - scoped, cache-coherent, disk-bounded Cargo workflows.
+- `pick-a-service` - screen and rank service opportunities before experimental validation.
